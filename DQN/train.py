@@ -32,16 +32,11 @@ class Agent():
         if rnd < eps:
             return np.random.randint(self.action_space)
         else:
-            #print(state)
-
-
-            #print(state)
             #---set the network into evaluation mode(
             self.policy_qnet.eval()
             with torch.no_grad():
                 action_values = self.policy_qnet(state.to(self.device))
             #----choose best action
-            action = action_values.max(1)[1].view(1,1)
             action = np.argmax(action_values.cpu().data.numpy())
             #----We need switch it back to training mode
             self.policy_qnet.train()
@@ -73,23 +68,19 @@ class Agent():
         #print(rewards.size())
         next_states = list(map(lambda a: torch.as_tensor(a,device='cuda'),batch.next_state))
         next_states = torch.cat(next_states).to(self.device)
-        #print(list(batch.done))
-        #atch.done = [1 if i==True else 0 for i in list(batch.done)]
         dones = list(map(lambda a: torch.tensor([a],device='cuda'),batch.done))
         dones = torch.cat(dones).to(self.device)
-        #print(dones.size())
-        # Target = r + gamma*(max_a Q_target)
+
+        # Target = r + gamma*(max_a Q_target[next_state])
         action_values = self.target_qnet(next_states).detach()
-        #print(action_values.max(1)[0].detach())
+
         max_action_values = action_values.max(1)[0].detach()
         target = rewards + gamma*max_action_values*(1-dones)
         current = self.policy_qnet(states).gather(1,actions)
         target = target.reshape(32,1)
-        #print(target.size())
-        #print(max_action_values.shape)
-        #print(current.size())
+
         loss = F.smooth_l1_loss(target, current)
-        #print("Loss = ",loss)
+
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.policy_qnet.parameters():
@@ -97,7 +88,7 @@ class Agent():
         self.optimizer.step()
 
 
-    def train(self,max_epsiodes,max_steps):
+    def train(self,max_epsiodes):
         global steps
         eps = self.epsilon_start
         for episode in tqdm(range(max_epsiodes)):
@@ -145,6 +136,6 @@ if __name__ == "__main__":
     batch_size = 32
     myagent = Agent(action_space,frame_history_len,env,device,buffer_size,\
     epsilon_start,epsilon_decay,epsilon_min,update_every,batch_size)
-    myagent.train(500,100000)
+    myagent.train(180)
     torch.save(myagent.policy_qnet, "saved_model")
     env.close()
