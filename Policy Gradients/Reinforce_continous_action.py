@@ -1,3 +1,5 @@
+#------------------THIS IS VANILLA REINFORCE ALGORITHM WITH NO BASELINE-----------------------------------------------
+
 import gym
 import torch
 import torch as T
